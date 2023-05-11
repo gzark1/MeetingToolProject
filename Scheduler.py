@@ -89,8 +89,11 @@ class Scheduler:
             meetingID, orderID, fromdatetime, todatetime = meeting
             meet = MeetingInstance.MeetingInstance(meetingID, orderID, fromdatetime, todatetime)
             meetingInstaces.append(meet)
+            if self.redis.get(f'{meetingID}:{orderID}:status') is None:
+                self.redis.set(f'{meetingID}:{orderID}:status', 'inactive')
         return meetingInstaces
 
 
-sc = Scheduler()
-sc.run()
+if __name__ == '__main__':
+    scheduler = Scheduler()
+    scheduler.run()
