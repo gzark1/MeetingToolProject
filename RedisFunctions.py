@@ -24,7 +24,7 @@ def pubsubtest():
 
 
 # redis.publish('newchannel', "opening meeting")
-sub = redis.pubsub()
+# sub = redis.pubsub()
 
 
 l = ["channel1", "channel2", "channel3", "channel4", "channel5"]
