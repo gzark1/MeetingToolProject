@@ -1,3 +1,5 @@
+import datetime
+
 import RedisConnection
 import MeetingInstance
 import redis
@@ -54,17 +56,78 @@ def join_meeting(user, meeting):
     if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
         if redis.get(f'{meeting_id}:public').decode('utf-8') == 'true':
             redis.sadd(f'{meeting_id}:{order_id}:connected_users', user.userId)
+            timestamp = datetime.datetime.now()
+            redis.set(f'{meeting_id}:{order_id}:{user.userId}:timestamp', timestamp)
             subscriber = redis.pubsub()
-            subscriber.subscribe(f'channel_{order_id}')
+            subscriber.subscribe(f'{meeting_id}:{order_id}:channel')
             update_event_log(user.userId, 'join_meeting')
         else:
             if redis.sismember(f'{meeting_id}:audience', user.userId):
                 redis.sadd(f'{meeting_id}:{order_id}:connected_users', user.userId)
                 subscriber = redis.pubsub()
-                subscriber.subscribe(f'channel_{order_id}')
+                subscriber.subscribe(f'{meeting_id}:{order_id}:channel')
                 update_event_log(user.userId, 'join_meeting')
             else:
                 print("You are not allowed to join this meeting")
     else:
         print("Meeting is not active")
 
+
+def leave_meeting(user, meeting):
+    """"""
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
+        if redis.get(f'{meeting_id}:public').decode('utf-8') == 'true':
+            redis.srem(f'{meeting_id}:{order_id}:connected_users', user.userId)
+            update_event_log(user.userId, 'leave_meeting')
+        else:
+            if redis.sismember(f'{meeting_id}:audience', user.userId):
+                redis.srem(f'{meeting_id}:{order_id}:connected_users', user.userId)
+                update_event_log(user.userId, 'leave_meeting')
+            else:
+                print("You are not allowed to leave this meeting because you are not in the audience")
+    else:
+        print("Meeting is not active")
+
+
+def show_meeting_current_users(meeting):
+    """ Show all users in the meeting """
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
+        print(redis.smembers(f'{meeting_id}:{order_id}:connected_users'))
+    else:
+        print("Meeting is not active")
+
+
+def show_meeting_current_users_with_timestamp(meeting):
+    """ Show all users in the meeting """
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
+        for user_id in redis.smembers(f'{meeting_id}:{order_id}:connected_users'):
+            print(
+                f"User ID: {user_id}, Timestamp: {redis.get(f'{meeting_id}:{order_id}:{user_id}:timestamp').decode('utf-8')}")
+    else:
+        print("Meeting is not active")
+
+
+def post_message(user, meeting, message):
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
+        if redis.get(f'{meeting_id}:public').decode('utf-8') == 'true':
+            redis.publish(f'{meeting_id}:{order_id}:channel', f'{user.userId}: {message}')
+        else:
+            if redis.sismember(f'{meeting_id}:audience', user.userId):
+                redis.publish(f'{meeting_id}:{order_id}:channel', f'{user.userId}: {message}')
+            else:
+                print("You are not allowed to post message in this meeting")
+    else:
+        print("Meeting is not active")
+
+
+def delete_current_users_at_meeting_end(meeting):
+    """ Delete all users in the meeting """
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'inactive':
+        redis.delete(f'{meeting_id}:{order_id}:connected_users')
+    else:
+        print("Meeting is active users cannot be deleted")
