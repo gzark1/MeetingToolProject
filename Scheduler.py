@@ -6,6 +6,31 @@ import datetime
 import RedisFunctions
 
 
+def add_meeting_details(meetingInstance):
+    """Add meeting details to redis
+    :param meetingInstance: MeetingInstance object
+    :return: None
+    """
+    redis = RedisConnection.connect_to_redis()
+    meetingId = meetingInstance.meetingId
+    con = DataBaseConnection.check_connection()
+    if con is None:
+        con = DataBaseConnection.connect_to_database()
+    cursor = con.cursor()
+    cursor.execute("SELECT isPublic, audience FROM meetings WHERE meetingID = %s", (meetingId,))
+    isPublic, audience = cursor.fetchone()
+    audience = audience.split(',')
+    cursor.close()
+    if isPublic == 1:
+        print("public")
+        redis.set(f'{meetingId}:public', 'true')
+    else:
+        print("private")
+        redis.set(f'{meetingId}:public', 'false')
+        # Add audience to redis, for now it is hardcoded
+        redis.sadd(f'{meetingId}:audience', *audience)
+
+
 class Scheduler:
     meeting_instances = []
     redis = RedisConnection.connect_to_redis()
@@ -28,7 +53,7 @@ class Scheduler:
             meetingInstaces.append(meet)
             if self.redis.get(f'{meetingID}:{orderID}:status') is None:
                 self.redis.set(f'{meetingID}:{orderID}:status', 'inactive')
-                self.add_meeting_details(meet)
+                add_meeting_details(meet)
         return meetingInstaces
 
     def activate_meetings(self):
@@ -93,33 +118,8 @@ class Scheduler:
             meetingInstaces.append(meet)
             if self.redis.get(f'{meetingID}:{orderID}:status') is None:
                 self.redis.set(f'{meetingID}:{orderID}:status', 'inactive')
-                self.add_meeting_details(meet)
+                add_meeting_details(meet)
         return meetingInstaces
-
-    def add_meeting_details(self, meetingInstance):
-        """Add meeting details to redis
-        :param meetingInstance: MeetingInstance object
-        :return: None
-        """
-        redis = RedisConnection.connect_to_redis()
-        meetingId = meetingInstance.meetingId
-        con = DataBaseConnection.check_connection()
-        if con is None:
-            con = DataBaseConnection.connect_to_database()
-        cursor = con.cursor()
-        cursor.execute("SELECT isPublic, audience FROM meetings WHERE meetingID = %s", (meetingId,))
-        isPublic, audience = cursor.fetchone()
-        audience = audience.split(',')
-        audience = [int(i) for i in audience]
-        cursor.close()
-        if isPublic == 1:
-            print("public")
-            redis.set(f'{meetingId}:public', 'true')
-        else:
-            print("private")
-            redis.set(f'{meetingId}:public', 'false')
-            # Add audience to redis, for now it is hardcoded
-            redis.sadd(f'{meetingId}:audience', *audience)
 
 
 if __name__ == '__main__':
