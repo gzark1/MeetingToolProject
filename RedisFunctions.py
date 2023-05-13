@@ -46,9 +46,10 @@ def update_event_log(userId, event):
 def create_channel_in_redis(channel):
     sub = redis.pubsub()
     sub.subscribe(channel)
+    sub.parse_response()
     while True:
         for message in sub.listen():
-            pass
+            redis.rpush(channel+"_chat", message['data'])
 
 
 def create_channel(channel):
@@ -143,10 +144,12 @@ def post_message(user, meeting, message):
     if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'active':
         user_email = user.email
         if redis.get(f'{meeting_id}:public').decode('utf-8') == 'true':
-            redis.publish(f'{meeting_id}:{order_id}:channel', f'{user_email}: {message}')
+            redis.publish(f'{meeting_id}:{order_id}:channel',
+                          f'User:{user_email} Message: {message} Timestamp: {datetime.datetime.now()}')
         else:
             if redis.sismember(f'{meeting_id}:audience', user_email):
-                redis.publish(f'{meeting_id}:{order_id}:channel', f'{user_email}: {message}')
+                redis.publish(f'{meeting_id}:{order_id}:channel',
+                              f'User:{user_email} Message: {message} Timestamp: {datetime.datetime.now()}')
             else:
                 print("You are not allowed to post message in this meeting")
     else:
@@ -163,3 +166,24 @@ def delete_current_users_at_meeting_end(meeting):
         redis.delete(f'{meeting_id}:{order_id}:connected_users')
     else:
         print("Meeting is active users cannot be deleted")
+
+
+def show_meeting_chat_in_cronological_order(meeting):
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    if redis.get(f'{meeting_id}:{order_id}:status') is None:
+        print("Meeting not found")
+        return
+    chat = redis.lrange(f'{meeting_id}:{order_id}:channel_chat', 0, -1)
+    for message in chat:
+        print(message.decode('utf-8'))
+
+def show_meeting_chat_of_a_user(meeting, user):
+    meeting_id, order_id = meeting.meetingId, meeting.orderId
+    user_email = user.email
+    if redis.get(f'{meeting_id}:{order_id}:status') is None:
+        print("Meeting not found")
+        return
+    chat = redis.lrange(f'{meeting_id}:{order_id}:channel_chat', 0, -1)
+    for message in chat:
+        if f'User:{user_email}' in message.decode('utf-8'):
+            print(message.decode('utf-8'))
