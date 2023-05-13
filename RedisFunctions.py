@@ -49,7 +49,7 @@ def create_channel_in_redis(channel):
     sub.parse_response()
     while True:
         for message in sub.listen():
-            redis.rpush(channel+"_chat", message['data'])
+            redis.rpush(channel + "_chat", message['data'])
 
 
 def create_channel(channel):
@@ -164,6 +164,15 @@ def delete_current_users_at_meeting_end(meeting):
         return
     if redis.get(f'{meeting_id}:{order_id}:status').decode('utf-8') == 'inactive':
         redis.delete(f'{meeting_id}:{order_id}:connected_users')
+        cursor = database.cursor()
+        for user_email in redis.smembers(f'{meeting_id}:{order_id}:connected_users'):
+            redis.delete(f'{meeting_id}:{order_id}:{user_email}:timestamp')
+            cursor.execute(f"SELECT userID FROM users WHERE email='{user_email}'")
+            user_id = cursor.fetchone()[0]
+            if user_id is not None:
+                update_event_log(user_email, 'timeout')
+            else:
+                print("User not found")
     else:
         print("Meeting is active users cannot be deleted")
 
@@ -176,6 +185,7 @@ def show_meeting_chat_in_cronological_order(meeting):
     chat = redis.lrange(f'{meeting_id}:{order_id}:channel_chat', 0, -1)
     for message in chat:
         print(message.decode('utf-8'))
+
 
 def show_meeting_chat_of_a_user(meeting, user):
     meeting_id, order_id = meeting.meetingId, meeting.orderId
