@@ -27,11 +27,11 @@ In order to achieve the goal of the project, the following classes were created:
 - Scheduler
 - RedisFunctions
 
-Scheduler is a class that is used to run the program in the background. It is used to check if there are any meetings that are due to start and if so, it starts them. It also checks if there are any meetings that are due to end and if so, it ends them.
-Scheduler in the start of the program is started in a separate thread and it runs in the background.
+Scheduler is a class that is used to check if there are any meetings that are due to start and if so, it starts them. It also checks if there are any meetings that are due to end and if so, it ends them.
+In the beggining of the program, Scheduler is started in a separate thread and it runs in the background.
 
-UI is a class that is used to interact with the user. It is used to get the user input and to display the output to the user.
+UI is a class that implements interaction with the user. The user types in the function he wants to run along with any required input in the command line. The produced output is displayed in the same CLI. 
 
-The main functions of the program are implemented in the RedisFunctions class. This class is used to interact with the Redis database. It is used to create, delete and update meetings and users. It is also used to get the information about the meetings and users.
+The main functions of the program are implemented in the RedisFunctions class. This class interacts with the Redis and MySql databases. It is used to create, delete and update meetings and users. It is also used to get the information about the meetings and users.
 
-In order to support chat we used redis pub/sub. When a user joins a meeting, he subscribes to the channel of that meeting. When a user sends a message, the message is published to the channel of the meeting. When a user joins a meeting, he receives all the messages that were sent to the channel of that meeting.The channel of the meeting runs in a separate thread and it runs in the background. 
+In order to support chat we used redis pub/sub. When a user joins a meeting, he subscribes to the channel of that meeting. When a user sends a message, the message is published to the channel of the meeting. The channel of each meeting runs in a separate thread the background. 
