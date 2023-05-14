@@ -35,3 +35,9 @@ UI is a class that is used to interact with the user. It is used to get the user
 The main functions of the program are implemented in the RedisFunctions class. This class is used to interact with the Redis database. It is used to create, delete and update meetings and users. It is also used to get the information about the meetings and users.
 
 In order to support chat we used redis pub/sub. When a user joins a meeting, he subscribes to the channel of that meeting. When a user sends a message, the message is published to the channel of the meeting. When a user joins a meeting, he receives all the messages that were sent to the channel of that meeting.The channel of the meeting runs in a separate thread and it runs in the background. 
+
+In Main class we run the Ui class and Scheduler class in separate threads. We also run the channel of the meeting in a separate thread.
+
+## Authors
+- Marios Aintini(8200003)
+- Giorgos Zarkadas(8200043)

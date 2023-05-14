@@ -1,4 +1,6 @@
 import time
+
+from Channel import Channel
 import DataBaseConnection
 import RedisConnection
 import MeetingInstance
@@ -22,10 +24,8 @@ def add_meeting_details(meetingInstance):
     audience = audience.split(',')
     cursor.close()
     if isPublic == 1:
-        print("public")
         redis.set(f'{meetingId}:public', 'true')
     else:
-        print("private")
         redis.set(f'{meetingId}:public', 'false')
         # Add audience to redis, for now it is hardcoded
         redis.sadd(f'{meetingId}:audience', *audience)
@@ -33,6 +33,7 @@ def add_meeting_details(meetingInstance):
 
 class Scheduler:
     meeting_instances = []
+    channels = {}
     redis = RedisConnection.connect_to_redis()
     con = DataBaseConnection.connect_to_database()
 
@@ -65,11 +66,9 @@ class Scheduler:
             # set meeting instance status to "active"
             if meetingInstance.fromdatatime <= current_time <= meetingInstance.todatetime:
                 status = self.redis.get(f'{meetingID}:{orderID}:status')
+                RedisFunctions.create_channel(f'{meetingID}:{orderID}:channel')
                 if status.decode('utf-8') != "active":
                     self.redis.set(f'{meetingID}:{orderID}:status', 'active')
-                    RedisFunctions.create_channel(f'{meetingID}:{orderID}:channel')  # create channel for the meeting
-                    print("Add to redis "
-                          "" + self.redis.get(f'{meetingID}:{orderID}:status').decode('utf-8'))
 
     def deactivate_meetings(self):
         # get all meeting instances with end time less than or equal to current time
@@ -83,8 +82,7 @@ class Scheduler:
                 status = redis.get(f'{meetingID}:{orderID}:status')
                 if status.decode('utf-8') != "inactive":
                     redis.set(f'{meetingID}:{orderID}:status', 'inactive')
-                    print("Add to redis "
-                          "" + redis.get(f'{meetingID}:{orderID}:status').decode('utf-8'))
+                    RedisFunctions.delete_current_users_at_meeting_end(meetingInstance)
 
     def run(self):
         """Run the scheduler"""
